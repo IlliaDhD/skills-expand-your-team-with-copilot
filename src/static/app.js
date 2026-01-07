@@ -884,13 +884,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const activityName = button.dataset.activity;
     const description = button.dataset.description;
     const schedule = button.dataset.schedule;
-    const shareType = button.classList.contains("facebook")
-      ? "facebook"
-      : button.classList.contains("twitter")
-      ? "twitter"
-      : button.classList.contains("email")
-      ? "email"
-      : "copy";
+    
+    // Determine share type from button classes
+    const shareTypes = ["facebook", "twitter", "email", "copy"];
+    const shareType = shareTypes.find((type) =>
+      button.classList.contains(type)
+    ) || "copy";
 
     // Create shareable text and URL
     const pageUrl = window.location.origin + window.location.pathname;
@@ -898,7 +897,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const encodedText = encodeURIComponent(shareText);
     const encodedUrl = encodeURIComponent(pageUrl);
 
-    // Try to use Web Share API for mobile devices (if available)
+    // Try to use Web Share API for social media sharing (better mobile experience)
     if (
       navigator.share &&
       (shareType === "facebook" || shareType === "twitter")
@@ -915,7 +914,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .catch((error) => {
           // If user cancels, silently fail
           if (error.name !== "AbortError") {
-            // Fallback to opening share URL
+            // Fallback to opening share URL in a new window
             openShareWindow(shareType, encodedText, encodedUrl);
           }
         });
@@ -977,27 +976,33 @@ document.addEventListener("DOMContentLoaded", () => {
   // Helper function to open share windows
   function openShareWindow(type, encodedText, encodedUrl, message) {
     let shareUrl;
-    if (type === "facebook") {
-      shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`;
-    } else if (type === "twitter") {
-      shareUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
+    
+    switch (type) {
+      case "facebook":
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`;
+        break;
+      case "twitter":
+        shareUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
+        break;
+      default:
+        showMessage("Unsupported share type.", "error");
+        return;
     }
 
-    if (shareUrl) {
-      const popup = window.open(
-        shareUrl,
-        "_blank",
-        "width=600,height=400,scrollbars=yes,resizable=yes"
+    const popup = window.open(
+      shareUrl,
+      "_blank",
+      "width=600,height=400,scrollbars=yes,resizable=yes"
+    );
+    
+    if (popup) {
+      showMessage(message || "Opening share dialog...", "info");
+    } else {
+      // If popup was blocked, provide alternative
+      showMessage(
+        "Please allow popups to share, or copy the link instead.",
+        "error"
       );
-      if (popup) {
-        showMessage(message || "Opening share dialog...", "info");
-      } else {
-        // If popup was blocked, provide alternative
-        showMessage(
-          "Please allow popups to share, or copy the link instead.",
-          "error"
-        );
-      }
     }
   }
 
