@@ -555,16 +555,16 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="share-container">
         <div class="share-label">Share this activity:</div>
         <div class="share-buttons">
-          <button class="share-button facebook" data-activity="${name}" data-description="${details.description}" data-schedule="${formattedSchedule}" title="Share on Facebook">
+          <button class="share-button facebook" data-activity="${name}" data-description="${details.description}" data-schedule="${formattedSchedule}" title="Share on Facebook" aria-label="Share ${name} on Facebook">
             <span class="share-icon">📘</span>
           </button>
-          <button class="share-button twitter" data-activity="${name}" data-description="${details.description}" data-schedule="${formattedSchedule}" title="Share on Twitter/X">
+          <button class="share-button twitter" data-activity="${name}" data-description="${details.description}" data-schedule="${formattedSchedule}" title="Share on Twitter/X" aria-label="Share ${name} on Twitter">
             <span class="share-icon">🐦</span>
           </button>
-          <button class="share-button email" data-activity="${name}" data-description="${details.description}" data-schedule="${formattedSchedule}" title="Share via Email">
+          <button class="share-button email" data-activity="${name}" data-description="${details.description}" data-schedule="${formattedSchedule}" title="Share via Email" aria-label="Share ${name} via email">
             <span class="share-icon">✉️</span>
           </button>
-          <button class="share-button copy" data-activity="${name}" data-description="${details.description}" data-schedule="${formattedSchedule}" title="Copy Link">
+          <button class="share-button copy" data-activity="${name}" data-description="${details.description}" data-schedule="${formattedSchedule}" title="Copy Link" aria-label="Copy ${name} details to clipboard">
             <span class="share-icon">🔗</span>
           </button>
         </div>
@@ -898,19 +898,47 @@ document.addEventListener("DOMContentLoaded", () => {
     const encodedText = encodeURIComponent(shareText);
     const encodedUrl = encodeURIComponent(pageUrl);
 
+    // Try to use Web Share API for mobile devices (if available)
+    if (
+      navigator.share &&
+      (shareType === "facebook" || shareType === "twitter")
+    ) {
+      navigator
+        .share({
+          title: `${activityName} - Mergington High School`,
+          text: shareText,
+          url: pageUrl,
+        })
+        .then(() => {
+          showMessage("Shared successfully!", "success");
+        })
+        .catch((error) => {
+          // If user cancels, silently fail
+          if (error.name !== "AbortError") {
+            // Fallback to opening share URL
+            openShareWindow(shareType, encodedText, encodedUrl);
+          }
+        });
+      return;
+    }
+
     switch (shareType) {
       case "facebook":
-        // Facebook share dialog
-        const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`;
-        window.open(facebookUrl, "_blank", "width=600,height=400");
-        showMessage("Opening Facebook share dialog...", "info");
+        openShareWindow(
+          "facebook",
+          encodedText,
+          encodedUrl,
+          "Share on Facebook"
+        );
         break;
 
       case "twitter":
-        // Twitter/X share
-        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
-        window.open(twitterUrl, "_blank", "width=600,height=400");
-        showMessage("Opening Twitter/X share dialog...", "info");
+        openShareWindow(
+          "twitter",
+          encodedText,
+          encodedUrl,
+          "Share on Twitter/X"
+        );
         break;
 
       case "email":
@@ -928,29 +956,66 @@ document.addEventListener("DOMContentLoaded", () => {
       case "copy":
         // Copy link to clipboard
         const textToCopy = `${activityName} - ${description}\nSchedule: ${schedule}\nLearn more: ${pageUrl}`;
-        navigator.clipboard
-          .writeText(textToCopy)
-          .then(() => {
-            showMessage("Activity details copied to clipboard!", "success");
-          })
-          .catch(() => {
-            // Fallback for older browsers
-            const textarea = document.createElement("textarea");
-            textarea.value = textToCopy;
-            textarea.style.position = "fixed";
-            textarea.style.opacity = "0";
-            document.body.appendChild(textarea);
-            textarea.select();
-            try {
-              document.execCommand("copy");
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard
+            .writeText(textToCopy)
+            .then(() => {
               showMessage("Activity details copied to clipboard!", "success");
-            } catch (err) {
-              showMessage("Failed to copy. Please try again.", "error");
-            }
-            document.body.removeChild(textarea);
-          });
+            })
+            .catch(() => {
+              // Fallback if clipboard API fails
+              fallbackCopy(textToCopy);
+            });
+        } else {
+          // Fallback for older browsers
+          fallbackCopy(textToCopy);
+        }
         break;
     }
+  }
+
+  // Helper function to open share windows
+  function openShareWindow(type, encodedText, encodedUrl, message) {
+    let shareUrl;
+    if (type === "facebook") {
+      shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`;
+    } else if (type === "twitter") {
+      shareUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
+    }
+
+    if (shareUrl) {
+      const popup = window.open(
+        shareUrl,
+        "_blank",
+        "width=600,height=400,scrollbars=yes,resizable=yes"
+      );
+      if (popup) {
+        showMessage(message || "Opening share dialog...", "info");
+      } else {
+        // If popup was blocked, provide alternative
+        showMessage(
+          "Please allow popups to share, or copy the link instead.",
+          "error"
+        );
+      }
+    }
+  }
+
+  // Fallback copy method for older browsers
+  function fallbackCopy(text) {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand("copy");
+      showMessage("Activity details copied to clipboard!", "success");
+    } catch (err) {
+      showMessage("Failed to copy. Please try again.", "error");
+    }
+    document.body.removeChild(textarea);
   }
 
   // Expose filter functions to window for future UI control
