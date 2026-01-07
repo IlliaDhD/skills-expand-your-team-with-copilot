@@ -686,6 +686,15 @@ footer {
   transform: scale(0.95);
 }
 
+/* Dark mode specific styling for toggle button */
+body.dark-mode #dark-mode-toggle {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+body.dark-mode #dark-mode-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
 #user-info {
   display: flex;
   align-items: center;
